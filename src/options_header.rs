@@ -18,10 +18,29 @@
 
 use CalAmpError;
 
-pub enum MobileId {
-    /// No mobile ID provided.
-    None,
+#[derive(Clone,Debug)]
+pub enum ForwardingProtocol {
+    /// TCP protocol.
+    Tcp,
 
+    /// UDP protocol.
+    Udp
+}
+
+#[derive(Clone,Debug)]
+pub enum ForwardingOperationType {
+    /// Standard forwarding.
+    Forward,
+
+    /// Forward with lookup.
+    ForwardLookup,
+
+    /// Proxy forwarding.
+    Proxy
+}
+
+#[derive(Clone,Debug)]
+pub enum MobileId {
     /// Electronic serial number.
     Esn(String),
 
@@ -41,59 +60,162 @@ pub enum MobileId {
     User(Vec<u8>)
 }
 
+#[derive(Clone)]
 pub struct OptionsHeader {
     /// Authentication details.
     authentication: Option<Vec<u8>>,
 
-    /// Forwarding IP address.
-    forwarding_ip_address: Option<[u8; 4]>,
-
-    /// Forwarding port.
-    forwarding_port: Option<u16>,
+    /// Forwarding IP address and port.
+    forwarding: Option<(String, u16, ForwardingProtocol, ForwardingOperationType)>,
 
     /// Mobile ID.
-    mobile_id: Option<Vec<u8>>,
+    mobile_id: Option<MobileId>,
 
-    /// Redirection IP address.
-    redirection_ip_address: Option<[u8; 4]>,
-
-    /// Redirection port.
-    redirection_port: Option<u16>,
+    /// Redirection IP address and port.
+    redirection: Option<(String, u16)>,
 
     /// Routing details.
     routing: Option<Vec<u8>>
 }
 
 impl OptionsHeader {
-    /// Parse options header data from a stream.
+    /// Retrieve the mobile ID.
+    pub fn mobile_id(&self) -> Option<MobileId> {
+        self.mobile_id.clone()
+    }
+
+    /// Parse options header data from a slice.
     ///
     /// Returns the OptionsHeader instance and parsed byte count.
-    pub fn parse(stream: &[u8]) -> Result<(OptionsHeader, usize), CalAmpError> {
-        // stream index
-        let mut index = 1;
+    pub fn parse(slice: &[u8]) -> Result<(OptionsHeader, usize), CalAmpError> {
+        // slice index
+        let mut index = 0;
 
-        // current item length
-        let mut length = 0;
+        // option bits
+        let bits = read_u8!(slice, index);
 
         let mut options = OptionsHeader{
             authentication: None,
-            forwarding_ip_address: None,
-            forwarding_port: None,
+            forwarding: None,
             mobile_id: None,
-            redirection_ip_address: None,
-            redirection_port: None,
+            redirection: None,
             routing: None
         };
 
-        if stream[0] & 1 == 1 {
-            // stream contains mobile id
-            length = stream[index] as usize;
+        if bits >> 7 == 0 {
+            // options header is not present
+            return Ok((options, index));
+        }
 
-            let mut v = Vec::with_capacity(length);
+        // bit 0: indicates a mobile id has been supplied
+        if bits & 1 == 1 {
+            // byte 1:          length of mobile id details
+            // bytes 2..length: mobile id details
+            let mut length = read_u8!(slice, index) as usize;
 
-            index += 1;
+            if length > 0 {
+                let id_bytes = read_vector!(slice, index, length);
 
-            v.push(stream[index]);
+                // bit 1: mobile id type
+                if (bits >> 1) & 1 == 1 {
+                    // byte 1:          length of mobile id type details
+                    // bytes 2..length: mobile id type details
+                    length = read_u8!(slice, index) as usize;
+
+                    options.mobile_id = match read_u8!(slice, index) {
+                        1 => {
+                            // mobile id is an ESN
+                            let mut id = String::with_capacity(length * 2);
+
+                            for n in id_bytes {
+                                id.push((0x30 + (n >> 4)) as char);
+                                id.push((0x30 + (n & 0xF)) as char);
+                            }
+
+                            Some(MobileId::Esn(id))
+                        },
+                        2 => {
+                            // mobile id is an IMEI or EID
+                            None
+                        },
+                        3 => {
+                            // mobile id is an IMSI
+                            None
+                        },
+                        4 => {
+                            // mobile id is user defined
+                            None
+                        },
+                        5 => {
+                            // mobile id is a phone number
+                            None
+                        },
+                        6 => {
+                            // mobile id is an ip address
+                            None
+                        },
+                        _ => {
+                            // mobile id is empty
+                            None
+                        }
+                    }
+                }
+            } else {
+                options.mobile_id = None;
+            }
+        }
+
+        // bit 2: indicates authentication has been supplied
+        if (bits >> 2) & 1 == 1 {
+            // byte 1:          length of authentication details
+            // bytes 2..length: authentication details
+            let length = read_u8!(slice, index) as usize;
+
+            if length > 0 {
+                options.authentication = Some(read_vector!(slice, index, length));
+            }
+        }
+
+        // bit 3: indicates routing has been supplied
+        if (bits >> 3) & 1 == 1 {
+            // byte 1:          length of routing details
+            // bytes 2..length: routing details
+            let length = read_u8!(slice, index) as usize;
+
+            if length > 0 {
+                options.routing = Some(read_vector!(slice, index, length));
+            }
+        }
+
+        // bit 4: indicates forwarding has been supplied
+        if (bits >> 4) & 1 == 1 {
+            // byte 1:          length of forwarding details
+            // bytes 2..length: forwarding details
+            let length = read_u8!(slice, index) as usize;
+
+            if length > 0 {
+                let ip = format!("{}.{}.{}.{}", read_u8!(slice, index),
+                                                read_u8!(slice, index),
+                                                read_u8!(slice, index),
+                                                read_u8!(slice, index));
+
+                options.forwarding = Some((ip,
+                                           // port
+                                           read_u16!(slice, index),
+
+                                           // protocol
+                                           match read_u8!(slice, index) {
+                                               17 => ForwardingProtocol::Udp,
+                                               _ => ForwardingProtocol::Tcp
+                                           },
+
+                                           // operation type
+                                           match read_u8!(slice, index) {
+                                               0 => ForwardingOperationType::Forward,
+                                               1 => ForwardingOperationType::Proxy,
+                                               _ => ForwardingOperationType::ForwardLookup
+                                           }));
+            }
         }
 
         Ok((options, index))

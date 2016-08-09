@@ -16,30 +16,52 @@
 // | Author: Sean Kerr <sean@code-box.org>                                                         |
 // +-----------------------------------------------------------------------------------------------+
 
-extern crate calamp;
+/// Read a u8 from `$slice`, and then advance `$index` by 1 byte. Upon locating end-of-stream,
+/// return prematurely with `CalAmpError::Eos`.
+macro_rules! read_u8 {
+    ($slice:expr, $index:expr) => ({
+        verify_bytes!($slice, $index, 1);
 
-use std::fs::File;
-use std::io::prelude::*;
+        $index += 1;
 
-use calamp::options_header::*;
+        $slice[$index - 1]
+    });
+}
 
-#[test]
-fn mobile_id() {
-    let mut v = Vec::new();
+/// Read a u16 from `$slice`, and then advance `$index` by 2 bytes. Upon locating end-of-stream,
+/// return prematurely with `CalAmpError::Eos`.
+macro_rules! read_u16 {
+    ($slice:expr, $index:expr) => ({
+        verify_bytes!($slice, $index, 2);
 
-    File::open("tests/sample/message1.bin").unwrap()
-                                           .read_to_end(&mut v)
-                                           .unwrap();
+        $index += 2;
 
-    match OptionsHeader::parse(&v) {
-        Ok((options, _)) => {
-            match options.mobile_id() {
-                Some(MobileId::Esn(id)) => {
-                    println!("ID: {:?}", id);
-                },
-                _ => panic!("OptionsHeader::mobile_id is empty")
-            }
-        },
-        _ => panic!("Failed to parse OptionsHeader")
-    }
+        ((($slice[$index - 2] as u16) << 8) + $slice[$index - 1] as u16)
+    });
+}
+
+/// Read `$length` bytes from `$slice` into a vector, and then advance `$index` by `$length` bytes.
+/// Upon locating end-of-stream, return prematurely with `CalAmpError::Eos`.
+macro_rules! read_vector {
+    ($slice:expr, $index:expr, $length:expr) => ({
+        verify_bytes!($slice, $index, $length);
+
+        let mut v = Vec::with_capacity($length);
+
+        v.extend_from_slice(&$slice[$index..$index+$length]);
+
+        $index += $length;
+
+        v
+    });
+}
+
+/// Verify `$length` bytes are available within `$slice`. Upon locating end-of-stream, return
+/// prematurely with `CalAmpError::Eos`.
+macro_rules! verify_bytes {
+    ($slice:expr, $index:expr, $length:expr) => ({
+        if $index + $length >= $slice.len() {
+            return Err(CalAmpError::Eos);
+        }
+    });
 }

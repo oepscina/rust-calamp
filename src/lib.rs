@@ -16,6 +16,9 @@
 // | Author: Sean Kerr <sean@code-box.org>                                                         |
 // +-----------------------------------------------------------------------------------------------+
 
+#[macro_use]
+mod macros;
+
 pub mod message;
 pub mod message_header;
 pub mod options_header;

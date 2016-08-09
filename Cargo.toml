@@ -1,0 +1,11 @@
+[package]
+name        = "calamp"
+version     = "0.1.0"
+authors     = ["Sean Kerr <sean@code-box.org>"]
+license     = "Apache-2.0"
+description = "Rust library for parsing CalAmp LMU messages"
+homepage    = "https://github.com/seankerr/rust-calamp"
+repository  = "https://github.com/seankerr/rust-calamp"
+readme      = "README.md"
+keywords    = ["calamp"]
+exclude     = [".gitignore"]

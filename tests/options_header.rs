@@ -24,7 +24,7 @@ use std::io::prelude::*;
 use calamp::options_header::*;
 
 #[test]
-fn mobile_id() {
+fn message1() {
     let mut v = Vec::new();
 
     File::open("tests/sample/message1.bin").unwrap()
@@ -34,10 +34,78 @@ fn mobile_id() {
     match OptionsHeader::parse(&v) {
         Ok((options, _)) => {
             match options.mobile_id() {
-                Some(MobileId::Esn(id)) => {
+                &Some(MobileId::Esn(ref id)) => {
                     println!("ID: {:?}", id);
                 },
                 _ => panic!("OptionsHeader::mobile_id is empty")
+            }
+
+            match options.authentication() {
+                &Some(ref authentication) => {
+                    println!("Authentication: {:?}", &authentication);
+                },
+                &None => {
+                    println!("Authentication: None");
+                }
+            }
+
+            match options.extension() {
+                &Some(ref extension) => {
+                    match extension.encryption_service() {
+                        &Some(ref data) => {
+                        },
+                        &None => {
+                        }
+                    }
+
+                    match extension.esn() {
+                        &Some(ref esn) => {
+                            println!("Extension ESN: {}", esn);
+                        },
+                        &None => {
+                            println!("Extension ESN: None");
+                        }
+                    }
+
+                    match extension.vin() {
+                        &Some(ref vin) => {
+                            println!("Extension VIN: {}", vin);
+                        },
+                        &None => {
+                            println!("Extension VIN: None");
+                        }
+                    }
+                },
+                &None => {
+                    println!("Extension: None");
+                }
+            }
+
+            match options.forwarding() {
+                &Some((ref ip, ref port, ref protocol, ref op)) => {
+                    println!("Forwarding: {}:{} {:?} {:?}", ip, port, protocol, op);
+                },
+                &None => {
+                    println!("Forwarding: None");
+                }
+            }
+
+            match options.redirection() {
+                &Some((ref ip, ref port)) => {
+                    println!("Redirection: {}:{}", ip, port);
+                },
+                &None => {
+                    println!("Redirection: None");
+                }
+            }
+
+            match options.routing() {
+                &Some(ref routing) => {
+                    println!("Routing: {:?}", &routing);
+                },
+                &None => {
+                    println!("Routing: None");
+                }
             }
         },
         _ => panic!("Failed to parse OptionsHeader")

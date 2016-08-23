@@ -60,10 +60,42 @@ pub enum MobileId {
     User(Vec<u8>)
 }
 
+#[derive(Clone,Debug)]
+pub struct OptionExtension {
+    /// Encryption service.
+    encryption_service: Option<[u8;4]>,
+
+    /// Electronic serial number.
+    esn: Option<String>,
+
+    /// Vehicle identification number.
+    vin: Option<String>
+}
+
+impl OptionExtension {
+    /// Retrieve the encryption service.
+    pub fn encryption_service(&self) -> &Option<[u8;4]> {
+        &self.encryption_service
+    }
+
+    /// Retrieve the ESN.
+    pub fn esn(&self) -> &Option<String> {
+       &self.esn
+    }
+
+    /// Retrieve the VIN.
+    pub fn vin(&self) -> &Option<String> {
+        &self.vin
+    }
+}
+
 #[derive(Clone)]
 pub struct OptionsHeader {
     /// Authentication details.
     authentication: Option<Vec<u8>>,
+
+    /// Options extension.
+    extension: Option<OptionExtension>,
 
     /// Forwarding IP address and port.
     forwarding: Option<(String, u16, ForwardingProtocol, ForwardingOperationType)>,
@@ -79,14 +111,9 @@ pub struct OptionsHeader {
 }
 
 impl OptionsHeader {
-    /// Retrieve the mobile ID.
-    pub fn mobile_id(&self) -> Option<MobileId> {
-        self.mobile_id.clone()
-    }
-
     /// Parse options header data from a slice.
     ///
-    /// Returns the OptionsHeader instance and parsed byte count.
+    /// Returns the OptionsHeader and parsed byte count.
     pub fn parse(slice: &[u8]) -> Result<(OptionsHeader, usize), CalAmpError> {
         // slice index
         let mut index = 0;
@@ -96,6 +123,7 @@ impl OptionsHeader {
 
         let mut options = OptionsHeader{
             authentication: None,
+            extension: None,
             forwarding: None,
             mobile_id: None,
             redirection: None,
@@ -125,14 +153,14 @@ impl OptionsHeader {
                     options.mobile_id = match read_u8!(slice, index) {
                         1 => {
                             // mobile id is an ESN
-                            let mut id = String::with_capacity(length * 2);
+                            let mut esn = String::with_capacity(length * 2);
 
                             for n in id_bytes {
-                                id.push((0x30 + (n >> 4)) as char);
-                                id.push((0x30 + (n & 0xF)) as char);
+                                esn.push((0x30 + (n >> 4)) as char);
+                                esn.push((0x30 + (n & 0xF)) as char);
                             }
 
-                            Some(MobileId::Esn(id))
+                            Some(MobileId::Esn(esn))
                         },
                         2 => {
                             // mobile id is an IMEI or EID
@@ -218,6 +246,134 @@ impl OptionsHeader {
             }
         }
 
+        // bit 5: indicates response redirection has been supplied
+        if (bits >> 5) & 1 == 1 {
+            let ip = format!("{}.{}.{}.{}", read_u8!(slice, index),
+                                            read_u8!(slice, index),
+                                            read_u8!(slice, index),
+                                            read_u8!(slice, index));
+
+            options.redirection = Some((ip,
+                                        // port
+                                        read_u16!(slice, index)));
+        }
+
+        // bit 6: indicates options extension has been supplied
+        if (bits >> 6) & 1 == 1 {
+            // byte 1:          length of options extension (always 1 byte)
+            // bytes 2..length: options extension
+            let length = read_u8!(slice, index);
+
+            if length > 1 {
+                return Err(CalAmpError::OptionExtensionBitLength(length));
+            };
+
+            let mut extension = OptionExtension{ encryption_service: None,
+                                                 esn: None,
+                                                 vin: None};
+
+            let extension_bits = read_u8!(slice, index);
+
+            if (extension_bits & 1) == 1 {
+                // extension bit 0: indicates ESN has been supplied
+                // byte 1:          length of ESN
+                // bytes 2..length: ESN
+                let length  = read_u8!(slice, index) as usize;
+                let mut esn = String::with_capacity(length * 2);
+
+                for n in read_vector!(slice, index, length) {
+                    esn.push((0x30 + (n >> 4)) as char);
+                    esn.push((0x30 + (n & 0xF)) as char);
+                }
+
+                extension.esn = Some(esn)
+            }
+
+            if ((extension_bits >> 1) & 1) == 1 {
+                // extension bit 1: indicates VIN has been supplied
+                // byte 1:          length of VIN
+                // bytes 2..length: VIN
+                let length  = read_u8!(slice, index) as usize;
+
+                if length != 17 {
+                    return Err(CalAmpError::VinLength);
+                }
+
+                let mut vin = String::with_capacity(length);
+
+                unsafe {
+                    read_into_vector!(slice, index, length, vin.as_mut_vec());
+                }
+
+                extension.vin = Some(vin);
+            }
+
+            if ((extension_bits >> 2) & 1) == 1 {
+                // extension bit 2: indicates encryption service has been supplied
+                // byte 1:          length of encryption service
+                // byte 2:          encryption type sub-field
+                // bytes 3..length: encryption service details
+                let length          = read_u8!(slice, index);
+                let encryption_type = read_u8!(slice, index);
+
+                match read_u8!(slice, index) {
+                    0 => {
+                        // no encryption
+                    },
+                    1 => {
+                        // encryption is based on LMU/TTU ESN
+                    },
+                    2 => {
+                        // encryption is based on IMEI or MEID
+                    },
+                    3 => {
+                        // encryption is based on mobile id
+                    },
+                    x @ _ => {
+                        return Err(CalAmpError::EncryptionType(x));
+                    }
+                }
+
+                let mut random_key = [0; 4];
+
+                read_into_array!(slice, index, random_key);
+
+                extension.encryption_service = Some(random_key);
+            }
+
+            options.extension = Some(extension);
+        }
+
         Ok((options, index))
+    }
+
+    /// Retrieve the authentication details.
+    pub fn authentication(&self) -> &Option<Vec<u8>> {
+        &self.authentication
+    }
+
+    /// Retrieve the extension details.
+    pub fn extension(&self) -> &Option<OptionExtension> {
+        &self.extension
+    }
+
+    /// Retrieve the forwarding details.
+    pub fn forwarding(&self) -> &Option<(String, u16, ForwardingProtocol, ForwardingOperationType)> {
+        &self.forwarding
+    }
+
+    /// Retrieve the mobile ID.
+    pub fn mobile_id(&self) -> &Option<MobileId> {
+        &self.mobile_id
+    }
+
+    /// Retrieve the redirection details.
+    pub fn redirection(&self) -> &Option<(String, u16)> {
+        &self.redirection
+    }
+
+    /// Retrieve the routing details.
+    pub fn routing(&self) -> &Option<Vec<u8>> {
+        &self.routing
     }
 }

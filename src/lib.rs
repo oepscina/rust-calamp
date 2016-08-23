@@ -24,6 +24,24 @@ pub mod message_header;
 pub mod options_header;
 
 pub enum CalAmpError {
+    /// Unsupported acknowledgement type.
+    AcknowledgementType(u8),
+
+    /// Unsupported encryption type.
+    EncryptionType(u8),
+
     /// Premature end of stream.
-    Eos
+    Eos,
+
+    /// Invalid message type.
+    MessageType(u8),
+
+    /// Option extension bit length.
+    OptionExtensionBitLength(u8),
+
+    /// Invalid service type.
+    ServiceType(u8),
+
+    /// Invalid vehicle identification number length.
+    VinLength
 }

@@ -16,6 +16,30 @@
 // | Author: Sean Kerr <sean@code-box.org>                                                         |
 // +-----------------------------------------------------------------------------------------------+
 
+/// Read `$array.len()` bytes from `$slice` into `$array`, and then advance `$index` by
+/// `$array.len()` bytes. Upon locating end-of-stream, return prematurely with `CalAmpError::Eos`.
+macro_rules! read_into_array {
+    ($slice:expr, $index:expr, $array:expr) => ({
+        verify_bytes!($slice, $index, $array.len());
+
+        for n in 0..$array.len() {
+            $array[n] = read_u8!($slice, $index);
+        }
+    });
+}
+
+/// Read `$length` bytes from `$slice` into a vector, and then advance `$index` by `$length` bytes.
+/// Upon locating end-of-stream, return prematurely with `CalAmpError::Eos`.
+macro_rules! read_into_vector {
+    ($slice:expr, $index:expr, $length:expr, $vector:expr) => ({
+        verify_bytes!($slice, $index, $length);
+
+        $vector.extend_from_slice(&$slice[$index..$index+$length]);
+
+        $index += $length;
+    });
+}
+
 /// Read a u8 from `$slice`, and then advance `$index` by 1 byte. Upon locating end-of-stream,
 /// return prematurely with `CalAmpError::Eos`.
 macro_rules! read_u8 {
@@ -40,7 +64,7 @@ macro_rules! read_u16 {
     });
 }
 
-/// Read `$length` bytes from `$slice` into a vector, and then advance `$index` by `$length` bytes.
+/// Read `$length` bytes from `$slice` as a vector, and then advance `$index` by `$length` bytes.
 /// Upon locating end-of-stream, return prematurely with `CalAmpError::Eos`.
 macro_rules! read_vector {
     ($slice:expr, $index:expr, $length:expr) => ({

@@ -21,6 +21,7 @@ extern crate calamp;
 use std::fs::File;
 use std::io::prelude::*;
 
+use calamp::message_header::*;
 use calamp::options_header::*;
 
 #[test]
@@ -31,83 +32,69 @@ fn message1() {
                                            .read_to_end(&mut v)
                                            .unwrap();
 
-    match OptionsHeader::parse(&v) {
-        Ok((options, _)) => {
+    let mut byte_count = match OptionsHeader::parse(&v) {
+        Ok((options, byte_count)) => {
             match options.mobile_id() {
-                &Some(MobileId::Esn(ref id)) => {
-                    println!("ID: {:?}", id);
-                },
+                &Some(ref id) => println!("{:?}", id),
                 _ => panic!("OptionsHeader::mobile_id is empty")
             }
 
             match options.authentication() {
-                &Some(ref authentication) => {
-                    println!("Authentication: {:?}", &authentication);
-                },
-                &None => {
-                    println!("Authentication: None");
-                }
+                &Some(ref authentication) => println!("Authentication: {:?}", &authentication),
+                &None => println!("Authentication: None")
             }
 
             match options.extension() {
                 &Some(ref extension) => {
                     match extension.encryption_service() {
-                        &Some(ref data) => {
+                        &Some(ref _data) => {
                         },
                         &None => {
                         }
                     }
 
                     match extension.esn() {
-                        &Some(ref esn) => {
-                            println!("Extension ESN: {}", esn);
-                        },
-                        &None => {
-                            println!("Extension ESN: None");
-                        }
+                        &Some(ref esn) => println!("Extension ESN: {}", esn),
+                        &None => println!("Extension ESN: None")
                     }
 
                     match extension.vin() {
-                        &Some(ref vin) => {
-                            println!("Extension VIN: {}", vin);
-                        },
-                        &None => {
-                            println!("Extension VIN: None");
-                        }
+                        &Some(ref vin) => println!("Extension VIN: {}", vin),
+                        &None => println!("Extension VIN: None")
                     }
                 },
-                &None => {
-                    println!("Extension: None");
-                }
+                &None => println!("Extension: None")
             }
 
             match options.forwarding() {
                 &Some((ref ip, ref port, ref protocol, ref op)) => {
                     println!("Forwarding: {}:{} {:?} {:?}", ip, port, protocol, op);
                 },
-                &None => {
-                    println!("Forwarding: None");
-                }
+                &None => println!("Forwarding: None")
             }
 
             match options.redirection() {
-                &Some((ref ip, ref port)) => {
-                    println!("Redirection: {}:{}", ip, port);
-                },
-                &None => {
-                    println!("Redirection: None");
-                }
+                &Some((ref ip, ref port)) => println!("Redirection: {}:{}", ip, port),
+                &None => println!("Redirection: None")
             }
 
             match options.routing() {
-                &Some(ref routing) => {
-                    println!("Routing: {:?}", &routing);
-                },
-                &None => {
-                    println!("Routing: None");
-                }
+                &Some(ref routing) => println!("Routing: {:?}", &routing),
+                &None => println!("Routing: None")
             }
+
+            byte_count
         },
         _ => panic!("Failed to parse OptionsHeader")
-    }
+    };
+
+    byte_count = match MessageHeader::parse(&v[byte_count..]) {
+        Ok((message, byte_count)) => {
+            println!("{:?}", message.service_type());
+            println!("{:?}", message.message_type());
+            println!("Sequence Number: {}", message.sequence_number());
+            byte_count
+        },
+        _ => panic!("Failed to parse MessageHeader")
+    };
 }

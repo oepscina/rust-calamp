@@ -13,12 +13,13 @@
 // | See the License for the specific language governing permissions and                           |
 // | limitations under the License.                                                                |
 // +-----------------------------------------------------------------------------------------------+
-// | Author: Sean Kerr <sean@code-box.org>                                                         |
+// | Author: Sean Kerr <sean@metatomic.io>                                                         |
 // +-----------------------------------------------------------------------------------------------+
 
 use CalAmpError;
+use std::fmt;
 
-#[derive(Clone,Debug)]
+#[derive(Clone)]
 pub enum ForwardingProtocol {
     /// TCP protocol.
     Tcp,
@@ -27,7 +28,33 @@ pub enum ForwardingProtocol {
     Udp
 }
 
-#[derive(Clone,Debug)]
+impl fmt::Debug for ForwardingProtocol {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ForwardingProtocol::Tcp => {
+                write!(formatter, "ForwardingProtocol::Tcp")
+            },
+            ForwardingProtocol::Udp => {
+                write!(formatter, "ForwardingProtocol::Udp")
+            }
+        }
+    }
+}
+
+impl fmt::Display for ForwardingProtocol {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ForwardingProtocol::Tcp => {
+                write!(formatter, "TCP")
+            },
+            ForwardingProtocol::Udp => {
+                write!(formatter, "UDP")
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum ForwardingOperationType {
     /// Standard forwarding.
     Forward,
@@ -39,7 +66,39 @@ pub enum ForwardingOperationType {
     Proxy
 }
 
-#[derive(Clone,Debug)]
+impl fmt::Debug for ForwardingOperationType {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ForwardingOperationType::Forward => {
+                write!(formatter, "ForwardingOperationType::Forward")
+            },
+            ForwardingOperationType::ForwardLookup => {
+                write!(formatter, "ForwardingOperationType::ForwardLookup")
+            },
+            ForwardingOperationType::Proxy => {
+                write!(formatter, "ForwardingOperationType::Proxy")
+            }
+        }
+    }
+}
+
+impl fmt::Display for ForwardingOperationType {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ForwardingOperationType::Forward => {
+                write!(formatter, "Forward")
+            },
+            ForwardingOperationType::ForwardLookup => {
+                write!(formatter, "ForwardLookup")
+            },
+            ForwardingOperationType::Proxy => {
+                write!(formatter, "Proxy")
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum MobileId {
     /// Electronic serial number.
     Esn(String),
@@ -58,6 +117,56 @@ pub enum MobileId {
 
     /// User defined mobile ID.
     User(Vec<u8>)
+}
+
+impl fmt::Debug for MobileId {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            MobileId::Esn(ref esn) => {
+                write!(formatter, "MobileId::Esn({})", esn)
+            },
+            MobileId::ImeiEid(ref id) => {
+                write!(formatter, "MobileId::ImeiEid({})", id)
+            },
+            MobileId::Imsi(ref imsi) => {
+                write!(formatter, "MobileId::Imsi({})", imsi)
+            },
+            MobileId::IpAddress(ref ip) => {
+                write!(formatter, "MobileId::IpAddress({})", ip)
+            },
+            MobileId::Phone(ref phone) => {
+                write!(formatter, "MobileId::Phone({})", phone)
+            },
+            MobileId::User(ref user) => {
+                write!(formatter, "MobileId::User({:?})", user)
+            }
+        }
+    }
+}
+
+impl fmt::Display for MobileId {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            MobileId::Esn(ref esn) => {
+                write!(formatter, "{}", esn)
+            },
+            MobileId::ImeiEid(ref id) => {
+                write!(formatter, "{}", id)
+            },
+            MobileId::Imsi(ref imsi) => {
+                write!(formatter, "{}", imsi)
+            },
+            MobileId::IpAddress(ref ip) => {
+                write!(formatter, "{}", ip)
+            },
+            MobileId::Phone(ref phone) => {
+                write!(formatter, "{}", phone)
+            },
+            MobileId::User(ref user) => {
+                write!(formatter, "{:?}", user)
+            }
+        }
+    }
 }
 
 #[derive(Clone,Debug)]

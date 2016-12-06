@@ -13,10 +13,11 @@
 // | See the License for the specific language governing permissions and                           |
 // | limitations under the License.                                                                |
 // +-----------------------------------------------------------------------------------------------+
-// | Author: Sean Kerr <sean@code-box.org>                                                         |
+// | Author: Sean Kerr <sean@metatomic.io>                                                         |
 // +-----------------------------------------------------------------------------------------------+
 
 use CalAmpError;
+use std::fmt;
 
 #[derive(Clone,Debug)]
 pub struct MessageHeader {
@@ -94,7 +95,7 @@ impl MessageHeader {
     }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone)]
 pub enum MessageType {
     /// ACK/NAK message.
     AckNak,
@@ -133,7 +134,93 @@ pub enum MessageType {
     UserDataAccumulators
 }
 
-#[derive(Clone,Debug)]
+impl fmt::Debug for MessageType {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            MessageType::AckNak => {
+                write!(formatter, "MessageType::AckNak")
+            },
+            MessageType::ApplicationData => {
+                write!(formatter, "MessageType::ApplicationData")
+            },
+            MessageType::ConfigurationParameter => {
+                write!(formatter, "MessageType::ConfigurationParameter")
+            },
+            MessageType::EventReport => {
+                write!(formatter, "MessageType::EventReport")
+            },
+            MessageType::IdReport => {
+                write!(formatter, "MessageType::IdReport")
+            },
+            MessageType::LocateReport => {
+                write!(formatter, "MessageType::LocateReport")
+            },
+            MessageType::MiniEventReport => {
+                write!(formatter, "MessageType::MiniEventReport")
+            },
+            MessageType::MiniUser => {
+                write!(formatter, "MessageType::MiniUser")
+            },
+            MessageType::Null => {
+                write!(formatter, "MessageType::Null")
+            },
+            MessageType::UnitRequest => {
+                write!(formatter, "MessageType::UnitRequest")
+            },
+            MessageType::UserData => {
+                write!(formatter, "MessageType::UserData")
+            },
+            MessageType::UserDataAccumulators => {
+                write!(formatter, "MessageType::UserDataAccumulators")
+            }
+        }
+    }
+}
+
+impl fmt::Display for MessageType {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            MessageType::AckNak => {
+                write!(formatter, "AckNak")
+            },
+            MessageType::ApplicationData => {
+                write!(formatter, "ApplicationData")
+            },
+            MessageType::ConfigurationParameter => {
+                write!(formatter, "ConfigurationParameter")
+            },
+            MessageType::EventReport => {
+                write!(formatter, "EventReport")
+            },
+            MessageType::IdReport => {
+                write!(formatter, "IdReport")
+            },
+            MessageType::LocateReport => {
+                write!(formatter, "LocateReport")
+            },
+            MessageType::MiniEventReport => {
+                write!(formatter, "MiniEventReport")
+            },
+            MessageType::MiniUser => {
+                write!(formatter, "MiniUser")
+            },
+            MessageType::Null => {
+                write!(formatter, "Null")
+            },
+            MessageType::UnitRequest => {
+                write!(formatter, "UnitRequest")
+            },
+            MessageType::UserData => {
+                write!(formatter, "UserData")
+            },
+            MessageType::UserDataAccumulators => {
+                write!(formatter, "UserDataAccumulators")
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum ServiceType {
     /// Acknowledged request.
     AcknowledgedRequest,
@@ -143,4 +230,36 @@ pub enum ServiceType {
 
     /// Unacknowledged request.
     UnacknowledgedRequest
+}
+
+impl fmt::Debug for ServiceType {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ServiceType::AcknowledgedRequest => {
+                write!(formatter, "ServiceType::AcknowledgedRequest")
+            },
+            ServiceType::Response => {
+                write!(formatter, "ServiceType::Response")
+            },
+            ServiceType::UnacknowledgedRequest => {
+                write!(formatter, "ServiceType::UnacknowledgedRequest")
+            }
+        }
+    }
+}
+
+impl fmt::Display for ServiceType {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ServiceType::AcknowledgedRequest => {
+                write!(formatter, "AcknowledgedRequest")
+            },
+            ServiceType::Response => {
+                write!(formatter, "Response")
+            },
+            ServiceType::UnacknowledgedRequest => {
+                write!(formatter, "UnacknowledgedRequest")
+            }
+        }
+    }
 }
